@@ -1,0 +1,15 @@
+# 本地环境
+.venv/
+__pycache__/
+.claude/
+
+# 密钥：只放在本地 .env 和 GitHub Secrets 里
+.env
+
+# 账本和数据（desk.db 在 GitHub 上存 data 分支）
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.log
+research/short_cycle/data/

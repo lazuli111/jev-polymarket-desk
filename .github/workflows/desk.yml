@@ -1,0 +1,66 @@
+# 每 15 分钟跑一轮影子交易台（main.py --once）。
+# Actions 每次都是全新的机器，账本 desk.db 存在 data 分支上：开始时取出来，跑完再推回去。
+# data 分支每次只保留一个提交（强推），二进制文件不会把仓库越撑越大。
+name: shadow desk
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # GitHub 的定时任务经常晚几分钟，高峰期偶尔会跳过一轮
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shadow-desk          # 同一时间只跑一轮，避免两轮同时改账本
+  cancel-in-progress: false
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 从 data 分支取出账本
+        # 只有确认分支不存在（退出码 2）才从空账本开始；查询或下载失败就让这一轮失败，
+        # 否则后面会用空账本把真实数据强推覆盖掉
+        run: |
+          code=0
+          git ls-remote --exit-code --heads origin data > /dev/null || code=$?
+          if [ "$code" -eq 0 ]; then
+            git fetch --depth=1 origin data
+            git show FETCH_HEAD:desk.db > desk.db
+            echo "已取出 desk.db（$(stat -c %s desk.db) 字节）"
+          elif [ "$code" -eq 2 ]; then
+            echo "还没有 data 分支，从空账本开始"
+          else
+            echo "查询 data 分支失败（退出码 $code），这一轮不跑"
+            exit 1
+          fi
+
+      - name: 跑一轮
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: python main.py --once
+
+      - name: 账本推回 data 分支
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir="$(mktemp -d)"
+          cp desk.db "$dir/"
+          cd "$dir"
+          git init -q -b data
+          git add desk.db
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "desk.db @ $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
