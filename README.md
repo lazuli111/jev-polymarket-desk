@@ -1,5 +1,7 @@
 # Jev × Polymarket 影子交易台
 
+**在线看板：https://lazuli111.github.io/jev-polymarket-desk/** （每 15 分钟随 GitHub Actions 更新一次）
+
 借鉴 savip 那篇 “Megabrain (Jev) & Six Grok Bots” 的架构：代码负责所有能算的东西，Jev 只回答“规则清不清楚”“结果更可能是哪个”这类判断题，每个回答都是带概率的数字。数据源从 meme 币换成了 Polymarket。
 
 **目前只有影子模式**：每一笔都按当时的真实盘口模拟成交、记账，不会下单。
@@ -52,11 +54,10 @@ cp .env.example .env        # 然后在 .env 里填上自己的 TYPESAFE_API_KEY
 
 ## 看板
 
-```bash
-.venv/bin/python ui.py   # 打开 http://localhost:8765
-```
+- **在线：https://lazuli111.github.io/jev-polymarket-desk/** 。GitHub Actions 每跑完一轮，就用最新的账本生成静态页面，发布到 GitHub Pages。页眉会显示数据更新时间。
+- **本地：http://localhost:8765** 。先运行 `.venv/bin/python ui.py`，它读本地的 `desk.db`。
 
-读本地的 `desk.db`，显示虚拟现金、持仓、Jev 判断的结论分布、最近的判断和校准，每 30 秒刷新。只读，不会改账本。
+两边是同一套页面：虚拟现金、持仓、Jev 判断的结论分布、最近的判断和校准，每 30 秒刷新。只读，不会改账本。
 
 ## 在 GitHub 上自动跑
 
@@ -67,6 +68,7 @@ cp .env.example .env        # 然后在 .env 里填上自己的 TYPESAFE_API_KEY
   gh secret set TYPESAFE_API_KEY   # 会提示粘贴，输入不显示
   ```
 - **账本**（`desk.db`）存在 `data` 分支上。每轮开始时取出来，跑完推回去，`data` 分支只保留最新的一个提交。取账本失败时这一轮直接失败，不会用空账本覆盖。
+- **看板**：每轮最后执行 `ui.py --export site`，把页面和 `desk.json` 发布到 GitHub Pages（仓库设置里 Pages 的来源是 GitHub Actions）。
 - **手动跑一轮**：仓库的 Actions 页面里点 “Run workflow”，或者 `gh workflow run desk.yml`。
 - **在本地看最新数据**：把 `data` 分支上的账本取下来，再开看板：
   ```bash

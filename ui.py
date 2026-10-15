@@ -1,7 +1,8 @@
-"""本地看板：影子交易台（持仓、Jev 判断、校准）。
+"""看板：影子交易台（持仓、Jev 判断、校准）。
 
-用法：.venv/bin/python ui.py [--port 8765]，然后打开 http://localhost:8765
-只读：不下单，也不改 desk.db；只监听 127.0.0.1。
+本地：.venv/bin/python ui.py [--port 8765]，然后打开 http://localhost:8765（只监听 127.0.0.1）
+在线：.venv/bin/python ui.py --export site 生成静态页面（页面 + desk.json），GitHub Actions 每轮发布到 Pages
+只读：不下单，也不改 desk.db。
 """
 
 from __future__ import annotations
@@ -10,7 +11,9 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import sqlite3
+import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -54,7 +57,8 @@ def desk_summary() -> dict:
                 fair=_brier(list(zip((r["mid_a"] + config.SHRINK * (r["p_a"] - r["mid_a"]) for r in resolved), ys))),
             )
         return {
-            "exists": True, "bank": config.SHADOW_BANK, "cash": config.SHADOW_BANK + realized - locked,
+            "exists": True, "generated_at": time.time(),
+            "bank": config.SHADOW_BANK, "cash": config.SHADOW_BANK + realized - locked,
             "realized": realized, "locked": locked,
             "open": rows("SELECT * FROM positions WHERE status = 'open' ORDER BY opened_ts DESC"),
             "closed": rows("SELECT * FROM positions WHERE status = 'closed' ORDER BY closed_ts DESC LIMIT 30"),
@@ -69,7 +73,16 @@ def desk_summary() -> dict:
         db.close()
 
 
-ROUTES = {"/api/desk": desk_summary}
+ROUTES = {"/desk.json": desk_summary}
+
+
+def export(out_dir: str):
+    """生成静态看板：ui/ 下的页面 + 当前账本算出来的 desk.json。"""
+    shutil.rmtree(out_dir, ignore_errors=True)
+    shutil.copytree(STATIC, out_dir)
+    with open(os.path.join(out_dir, "desk.json"), "w") as f:
+        json.dump(desk_summary(), f, ensure_ascii=False)
+    log.info("静态看板已生成：%s", out_dir)
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -93,8 +106,8 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def end_headers(self):
-        # 静态文件每次都向服务器确认，改完前端刷新就能看到
-        if not self.path.startswith("/api/"):
+        # 静态文件每次都向服务器确认，改完前端刷新就能看到（desk.json 自己带 no-store）
+        if urlparse(self.path).path not in ROUTES:
             self.send_header("cache-control", "no-cache")
         super().end_headers()
 
@@ -105,8 +118,12 @@ class Handler(SimpleHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description="Jev Desk 本地看板")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--export", metavar="DIR", help="不起服务，把静态看板生成到 DIR（发布到 GitHub Pages 用）")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)-4s %(message)s", datefmt="%H:%M:%S")
+    if args.export:
+        export(args.export)
+        return
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     log.info("看板已启动：http://localhost:%d", args.port)
     try:

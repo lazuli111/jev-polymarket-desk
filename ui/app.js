@@ -172,6 +172,7 @@ function renderDesk(d) {
       h("code", {}, ".venv/bin/python main.py"), "。"));
     return;
   }
+  if (d.generated_at) $("#updated").textContent = ` · 数据更新于 ${fmt.stamp(d.generated_at)}`;
   const lastAgo = d.last_ts ? (Date.now() / 1000 - d.last_ts) / 60 : null;
   $("#desk-kpis").replaceChildren(
     kpi("虚拟现金", fmt.money(d.cash), `本金 ${fmt.money(d.bank)} · 持仓占用 ${fmt.money(d.locked)}`),
@@ -223,7 +224,7 @@ function renderDesk(d) {
 
 async function loadDesk() {
   try {
-    renderDesk(await getJSON("/api/desk"));
+    renderDesk(await getJSON("desk.json"));  // 相对路径：本地服务和 GitHub Pages 子路径都能用
   } catch (e) {
     $("#desk-kpis").replaceChildren(h("div", { class: "card error" }, `读取 desk.db 失败：${e.message}`));
   }

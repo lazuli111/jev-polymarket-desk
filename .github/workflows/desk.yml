@@ -1,4 +1,4 @@
-# 每 15 分钟跑一轮影子交易台（main.py --once）。
+# 每 15 分钟跑一轮影子交易台（main.py --once），再把看板发布到 GitHub Pages。
 # Actions 每次都是全新的机器，账本 desk.db 存在 data 分支上：开始时取出来，跑完再推回去。
 # data 分支每次只保留一个提交（强推），二进制文件不会把仓库越撑越大。
 name: shadow desk
@@ -9,7 +9,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write   # 推 data 分支
+  pages: write      # 发布看板
+  id-token: write
 
 concurrency:
   group: shadow-desk          # 同一时间只跑一轮，避免两轮同时改账本
@@ -19,6 +21,9 @@ jobs:
   cycle:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
 
@@ -64,3 +69,13 @@ jobs:
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -q -m "desk.db @ $(date -u +%Y-%m-%dT%H:%MZ)"
           git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+
+      - name: 生成在线看板
+        run: python ui.py --export site
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5
