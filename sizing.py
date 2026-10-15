@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import config
@@ -46,10 +47,22 @@ class Opportunity:
         return self.shares * self.avg_price + self.fee
 
 
+def _logit(p: float) -> float:
+    p = min(max(p, 0.01), 0.99)
+    return math.log(p / (1 - p))
+
+
+def fair_value(mid: float, p_jev: float) -> float:
+    """第一个结果的公允概率。交易、report.py 和看板的校准都用这一个函数。"""
+    if config.FAIR_COEF:
+        c0, c1, c2 = config.FAIR_COEF
+        return 1 / (1 + math.exp(-(c0 + c1 * _logit(mid) + c2 * _logit(p_jev))))
+    return mid + config.SHRINK * (p_jev - mid)
+
+
 def fair_a(d, j) -> float:
     book = d.books[0]
-    mid = (book.best_bid + book.best_ask) / 2
-    return mid + config.SHRINK * (j.p_a - mid)
+    return fair_value((book.best_bid + book.best_ask) / 2, j.p_a)
 
 
 def evaluate(d, j, cash: float) -> Opportunity | None:

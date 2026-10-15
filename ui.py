@@ -18,6 +18,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 import config
+from sizing import fair_value
 
 log = logging.getLogger("ui")
 
@@ -54,7 +55,7 @@ def desk_summary() -> dict:
             calibration.update(
                 market=_brier(list(zip((r["mid_a"] for r in resolved), ys))),
                 jev=_brier(list(zip((r["p_a"] for r in resolved), ys))),
-                fair=_brier(list(zip((r["mid_a"] + config.SHRINK * (r["p_a"] - r["mid_a"]) for r in resolved), ys))),
+                fair=_brier(list(zip((fair_value(r["mid_a"], r["p_a"]) for r in resolved), ys))),
             )
         return {
             "exists": True, "generated_at": time.time(),
@@ -73,7 +74,17 @@ def desk_summary() -> dict:
         db.close()
 
 
-ROUTES = {"/desk.json": desk_summary}
+BACKTEST = os.path.join(ROOT, "research", "jev_backtest", "results.json")
+
+
+def backtest_summary() -> dict | None:
+    if not os.path.exists(BACKTEST):
+        return None
+    with open(BACKTEST) as f:
+        return json.load(f)
+
+
+ROUTES = {"/desk.json": desk_summary, "/backtest.json": backtest_summary}
 
 
 def export(out_dir: str):
@@ -82,6 +93,8 @@ def export(out_dir: str):
     shutil.copytree(STATIC, out_dir)
     with open(os.path.join(out_dir, "desk.json"), "w") as f:
         json.dump(desk_summary(), f, ensure_ascii=False)
+    with open(os.path.join(out_dir, "backtest.json"), "w") as f:
+        json.dump(backtest_summary(), f, ensure_ascii=False)
     log.info("静态看板已生成：%s", out_dir)
 
 

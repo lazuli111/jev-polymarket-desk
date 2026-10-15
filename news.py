@@ -78,8 +78,10 @@ def parse_rss(raw: bytes) -> list[NewsItem]:
 class NewsFeed:
     """一轮一个实例：缓存只在本轮有效，下一轮重新搜。"""
 
-    def __init__(self, now: float):
-        self.since = now - config.NEWS_MAX_AGE_DAYS * 86_400
+    def __init__(self, now: float, until: float | None = None):
+        """until：只要这个时刻之前发布的新闻（历史回测用）。这时只搜 Google，因为 Bing 不能按日期往回搜。"""
+        self.until = until
+        self.since = (until or now) - config.NEWS_MAX_AGE_DAYS * 86_400
         self._http = httpx.AsyncClient(
             timeout=15, follow_redirects=True,
             headers={"user-agent": "Mozilla/5.0 (X11; Linux x86_64) jev-desk/0.1"},
@@ -117,11 +119,18 @@ class NewsFeed:
             return []
 
     async def _search(self, query: str, focus: str) -> list[NewsItem]:
-        bing, google = await asyncio.gather(
-            self._source(BING, {"q": query, "format": "rss", "mkt": "en-US"}),
-            self._source(GOOGLE, {"q": f"{query} when:{config.NEWS_MAX_AGE_DAYS}d",
-                                  "hl": "en-US", "gl": "US", "ceid": "US:en"}),
-        )
+        google_params = {"hl": "en-US", "gl": "US", "ceid": "US:en"}
+        if self.until is None:
+            bing, google = await asyncio.gather(
+                self._source(BING, {"q": query, "format": "rss", "mkt": "en-US"}),
+                self._source(GOOGLE, {"q": f"{query} when:{config.NEWS_MAX_AGE_DAYS}d", **google_params}),
+            )
+        else:
+            # Google 的日期运算符按天算、边界也不严格，下面 keep() 还会按发布时间再卡一次
+            day = lambda ts: time.strftime("%Y-%m-%d", time.gmtime(ts))
+            bing = []
+            google = await self._source(GOOGLE, {
+                "q": f"{query} after:{day(self.since)} before:{day(self.until + 86_400)}", **google_params})
         # 粗略的相关性门槛：focus 里至少命中三分之一的词（按词首匹配）。搜索引擎搜不全时会拿
         # 部分命中的结果凑数，比如同一赛事的别的场次
         stems = [t[:-1] if len(t) > 4 and t.endswith("s") else t for t in focus.split() if len(t) >= 3]
@@ -130,7 +139,7 @@ class NewsFeed:
 
         def keep(n: NewsItem) -> bool:
             text = f"{n.title} {n.summary}"
-            return (n.ts >= self.since and not SKIP.search(text)
+            return (n.ts >= self.since and (self.until is None or n.ts < self.until) and not SKIP.search(text)
                     and sum(bool(t.search(text)) for t in terms) >= need)
 
         # 两边各自已按相关性排好，交替取，Bing 优先（有摘要），标题去重；最后按时间从新到旧

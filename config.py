@@ -16,6 +16,9 @@ UNIVERSE_PAGES = 5             # 每页 100 个市场，按 24h 成交额从高�
 MAX_DAYS_TO_END = 30
 
 # ---- 硬过滤：纯代码，不发请求 ----
+# 不碰的市场类别（Gamma feeType 的前缀）。体育：历史回测里 403 个体育盘，Jev 不比市场准，
+# 加上它也不比只用市场价好（research/jev_backtest/README.md）
+EXCLUDE_FEE_TYPES = ("sports",)
 MIN_LIQUIDITY = 10_000
 MIN_VOLUME_24H = 20_000
 MIN_HOURS_TO_END = 12
@@ -39,7 +42,12 @@ MAX_DISPUTE_RISK = 0.50        # 实测区分度差：规则很清楚的盘也�
 MIN_INFO_SCORE = 1.0           # 0~3 分；低于 1 = 除了题目本身几乎没有信息
 
 # ---- 定价 ----
-SHRINK = 0.5                   # 公允价 = 市场价 + SHRINK × (Jev - 市场价)。没校准之前别太信 Jev
+SHRINK = 0.25                  # 没有 FAIR_COEF 时：公允价 = 市场价 + SHRINK × (Jev - 市场价)。
+                               # 历史回测里 Jev 没带来市场价以外的信息，只给它四分之一的权重
+
+# 可选：公允概率 = sigmoid(c0 + c1·logit(市场价) + c2·logit(Jev))，系数取自 research/jev_backtest 的逻辑回归。
+# 现在不用：回测里这个组合（交叉验证）不比只用市场价好，Jev 的系数也不显著
+FAIR_COEF: tuple[float, float, float] | None = None
 MIN_EDGE = 0.04                # 扣掉手续费后，每股至少 4¢ 的优势
 SHORTLIST = 5                  # 交给 Jev 做最终选择的候选数
 MIN_PICK_CONFIDENCE = 0.40

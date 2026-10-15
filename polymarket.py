@@ -54,6 +54,7 @@ class Market:
     min_order_size: float
     tradable: bool
     resolved_a: float | None  # 已结算时第一个结果的结算价（1 / 0 / 0.5），否则 None
+    fee_type: str = ""        # Gamma 的 feeType，例如 sports_fees_v3、politics_fees，当市场类别用
 
     @property
     def mid(self) -> float | None:
@@ -98,6 +99,7 @@ class Market:
                 and raw.get("acceptingOrders") and raw.get("enableOrderBook")
             ),
             resolved_a=resolved_a,
+            fee_type=raw.get("feeType") or "",
         )
 
 

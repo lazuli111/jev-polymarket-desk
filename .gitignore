@@ -13,3 +13,6 @@ __pycache__/
 *.db-journal
 *.log
 research/short_cycle/data/
+
+# Jev 回测的逐条记录里有第三方新闻标题，只留在本地
+research/jev_backtest/records.jsonl

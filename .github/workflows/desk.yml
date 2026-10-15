@@ -5,7 +5,7 @@ name: shadow desk
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # GitHub 的定时任务经常晚几分钟，高峰期偶尔会跳过一轮
+    - cron: "4,19,34,49 * * * *"   # 每 15 分钟一轮；避开整点和每刻钟，那几分钟 GitHub 最忙，定时任务最容易被推迟或丢掉
   workflow_dispatch:
 
 permissions:

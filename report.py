@@ -7,6 +7,7 @@ import math
 import sqlite3
 
 import config
+from sizing import fair_value
 
 
 def brier(ps, ys):
@@ -32,7 +33,7 @@ def calibration(db):
     series = {
         "市场中间价": [r["mid_a"] for r in rows],
         "Jev 原始": [r["p_a"] for r in rows],
-        f"收缩后 (SHRINK={config.SHRINK})": [r["mid_a"] + config.SHRINK * (r["p_a"] - r["mid_a"]) for r in rows],
+        "交易用的公允价": [fair_value(r["mid_a"], r["p_a"]) for r in rows],
     }
     print(f"{'Brier ↓':>9}  {'LogLoss ↓':>9}")
     for name, ps in series.items():

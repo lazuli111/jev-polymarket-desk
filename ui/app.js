@@ -230,6 +230,43 @@ async function loadDesk() {
   }
 }
 
+// ---------- 历史回测 ----------
+
+const BACKTEST_GROUPS = {
+  sports: "体育", sports_liquid: "体育 · 成交量前一半", sports_clean: "体育 · 无疑似结果新闻",
+  other: "非体育", other_clean: "非体育 · 无疑似结果新闻", all: "全部",
+};
+
+function renderBacktest(b) {
+  const box = $("#backtest");
+  if (!b) {
+    box.replaceChildren(h("div", { class: "empty" }, "还没有回测结果。运行 ",
+      h("code", {}, ".venv/bin/python research/jev_backtest/backtest_jev.py"), "。"));
+    return;
+  }
+  const rows = Object.entries(BACKTEST_GROUPS).filter(([k]) => b.groups[k]).map(([k, label]) => {
+    const g = b.groups[k];
+    return [label, { v: fmt.int(g.n), cls: "num" }, { v: fmt.brier(g.brier_market), cls: "num" },
+      { v: fmt.brier(g.brier_jev), cls: "num" },
+      { v: `${g.diff >= 0 ? "+" : "−"}${Math.abs(g.diff).toFixed(4)} ± ${g.diff_se.toFixed(4)}`, cls: `num ${signClass(-g.diff)}` }];
+  });
+  const lg = b.logistic;
+  box.replaceChildren(
+    table(["样本", "市场数", "Brier 市场", "Brier Jev", "Jev − 市场"], rows, { numeric: [false, true, true, true, true] }),
+    h("p", { class: "sub" },
+      `Brier 越低越准；“Jev − 市场”为负才说明 Jev 更准，± 是标准误。加上 Jev 的组合（交叉验证）Brier ${fmt.brier(b.brier_combo_cv)}，`,
+      `只用市场价重新校准 ${fmt.brier(b.brier_market_recal_cv)}；逻辑回归里 Jev 的系数 ${lg.coef[2].toFixed(2)} ± ${lg.se[2].toFixed(2)}。`,
+      `回测生成于 ${fmt.stamp(b.generated_at)}。`));
+}
+
+async function loadBacktest() {
+  try {
+    renderBacktest(await getJSON("backtest.json"));
+  } catch (e) {
+    renderBacktest(null);
+  }
+}
+
 // ---------- 主题、轮询 ----------
 
 const themes = ["auto", "light", "dark"];
@@ -249,4 +286,5 @@ $("#theme").addEventListener("click", () => {
 });
 
 loadDesk();
+loadBacktest();
 setInterval(() => { if (!document.hidden) loadDesk(); }, 30_000);
