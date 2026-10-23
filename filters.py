@@ -11,7 +11,7 @@ import config
 def hard_reject(m, now: float) -> str | None:
     if not m.tradable:
         return "not_tradable"
-    if m.fee_type.startswith(config.EXCLUDE_FEE_TYPES):
+    if m.category.startswith(config.EXCLUDE_CATEGORIES):
         return "excluded_category"
     hours = (m.end_ts - now) / 3600
     if hours < config.MIN_HOURS_TO_END:

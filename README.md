@@ -89,6 +89,8 @@ cp .env.example .env        # 然后在 .env 里填上自己的 TYPESAFE_API_KEY
 
 实盘跑了一周后又排除了**加密货币和指数的价格盘**（`crypto`、`finance_prices`）。这类市场是纯数字，Jev 不管什么情况都给 0.4–0.55；前 8 个已结算的加密货币盘，市场 Brier 0.103，Jev 0.238。现在交易台只做地缘政治、政治这类要读新闻、看规则的市场。
 
+排除规则在 `config.EXCLUDE_CATEGORIES`。体育盘**按有没有开赛时间 / 体育盘口类型**（`gameStartTime`、`sportsMarketType`）识别，不看费率类型：NBA 开季的盘口挂的是 `zero_fees` 费率，按费率识别会漏掉。之前就因此漏进了几个 NBA 盘。
+
 ## 已放弃的方向：5 / 15 分钟涨跌盘
 
 半小时内结算的市场几乎全是加密货币 5 / 15 分钟涨跌盘。分钟级回测加秒级前向记录的结论是：盘口本身很准，用现货价算的 TWAP 模型在同一秒比不过盘口（Brier 0.169 vs 0.123，模型打法扣费后约 −50%），Coinbase 现货也不领先盘口，Jev 在这类纯数字、秒级反应的市场上派不上用场。代码、方法和数字都归档在 [research/short_cycle/](research/short_cycle/README.md)。

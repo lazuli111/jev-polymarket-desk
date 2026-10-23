@@ -54,7 +54,14 @@ class Market:
     min_order_size: float
     tradable: bool
     resolved_a: float | None  # 已结算时第一个结果的结算价（1 / 0 / 0.5），否则 None
-    fee_type: str = ""        # Gamma 的 feeType，例如 sports_fees_v3、politics_fees，当市场类别用
+    fee_type: str = ""        # Gamma 的 feeType，例如 sports_fees_v3、politics_fees
+    is_sports: bool = False   # 有开赛时间或体育盘口类型（moneyline、spreads……）就是体育盘
+
+    @property
+    def category(self) -> str:
+        """市场类别：体育盘统一是 "sports"，其余用 feeType。
+        体育盘不一定挂 sports_* 费率，比如 NBA 开季那批盘口是 zero_fees。"""
+        return "sports" if self.is_sports else self.fee_type
 
     @property
     def mid(self) -> float | None:
@@ -100,6 +107,7 @@ class Market:
             ),
             resolved_a=resolved_a,
             fee_type=raw.get("feeType") or "",
+            is_sports=bool(raw.get("gameStartTime") or raw.get("sportsMarketType")),
         )
 
 

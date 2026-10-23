@@ -16,11 +16,12 @@ UNIVERSE_PAGES = 5             # 每页 100 个市场，按 24h 成交额从高�
 MAX_DAYS_TO_END = 30
 
 # ---- 硬过滤：纯代码，不发请求 ----
-# 不碰的市场类别（Gamma feeType 的前缀）：
-# - sports：历史回测里 507 个体育盘，Jev 不比市场准，加上它也不比只用市场价好（research/jev_backtest/README.md）
+# 不碰的市场类别（Market.category 的前缀：体育盘是 "sports"，其余是 Gamma 的 feeType）：
+# - sports：历史回测里 507 个体育盘，Jev 不比市场准，加上它也不比只用市场价好（research/jev_backtest/README.md）。
+#   按有没有开赛时间 / 体育盘口类型识别，不看费率：NBA 开季的盘口挂的是 zero_fees
 # - crypto / finance_prices：比特币、以太坊、股指的价格盘。纯数字，Jev 不管什么情况都给 0.4–0.55；
 #   实盘前 8 个已结算的加密货币盘，市场 Brier 0.103，Jev 0.238
-EXCLUDE_FEE_TYPES = ("sports", "crypto", "finance_prices")
+EXCLUDE_CATEGORIES = ("sports", "crypto", "finance_prices")
 MIN_LIQUIDITY = 10_000
 MIN_VOLUME_24H = 20_000
 MIN_HOURS_TO_END = 12

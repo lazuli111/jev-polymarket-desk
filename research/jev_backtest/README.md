@@ -39,7 +39,7 @@ Brier 越低越准；“Jev − 市场”为负才说明 Jev 更准。
 
 ## 对交易台的改动
 
-1. **不再碰体育盘**：`config.EXCLUDE_FEE_TYPES = ("sports",)`。
+1. **不再碰体育盘**：`config.EXCLUDE_CATEGORIES` 里的 `"sports"`。体育盘按有没有开赛时间 / 体育盘口类型识别，不看费率类型。
 2. **Jev 的权重从 0.5 降到 0.25**：`config.SHRINK = 0.25`。非体育盘还看不出 Jev 有没有用，交易台继续在那里测量，但只有分歧很大时才开仓。
 3. 组合定价（`config.FAIR_COEF`）已经实现，但不启用，因为它不比只用市场价好。
 
